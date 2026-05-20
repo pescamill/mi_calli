@@ -24,7 +24,6 @@ A minimal FastAPI boilerplate with PostgreSQL, NGINX, and Docker Compose, design
 
 ## Test the app
 
-- Open `http://localhost/` to see the React placeholder.
 - Open `http://localhost/api/` to test the backend.
 
 Expected API response:
