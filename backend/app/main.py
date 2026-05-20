@@ -1,9 +1,11 @@
 from fastapi import FastAPI
-from app.db.database import engine
+from app.db.database import Base, engine
+import app.models  # Import models to register them with SQLAlchemy
 from sqlalchemy import text
 
 app = FastAPI()
 
+Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def read_root():
