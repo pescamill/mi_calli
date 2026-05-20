@@ -1,6 +1,6 @@
 # mi_calli
 
-A minimal React + FastAPI boilerplate with PostgreSQL, NGINX, and Docker Compose, designed for easy local development and future VPS deployment.
+A minimal FastAPI boilerplate with PostgreSQL, NGINX, and Docker Compose, designed for easy local development and future VPS deployment.
 
 ## Local setup
 
