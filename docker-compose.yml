@@ -24,6 +24,8 @@ services:
       - DATABASE_USER=mi_calli
       - DATABASE_PASSWORD=mi_calli_password
       - DATABASE_NAME=mi_calli
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       - postgres
 

@@ -14,7 +14,8 @@ def create_user(user: UserCreate):
 
     db_user = User(
         username=user.username,
-        password_hash=user.password  # still not production
+        password_hash=user.password,  # still not production
+        email=user.email
     )
 
     db.add(db_user)
