@@ -15,15 +15,6 @@ class User(Base):
         nullable=False
     )
 
-
-    email = Column(
-        String, 
-        unique=True, 
-        index=True, 
-        nullable=False
-        )
-
-
     password_hash = Column(
         String, 
         nullable=False

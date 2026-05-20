@@ -1,11 +1,21 @@
 from fastapi import FastAPI
 from app.db.database import Base, engine
-import app.models  # Import models to register them with SQLAlchemy
+from app.api.users import router as users_router
 from sqlalchemy import text
+import app.models 
 
 app = FastAPI()
+app.include_router(users_router)
 
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
+
+@app.post("/setup")
+def setup_database():
+    Base.metadata.create_all(bind=engine)
+
+    return {
+        "message": "database tables created"
+    }
 
 @app.get("/")
 def read_root():
