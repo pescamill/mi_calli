@@ -1,39 +1,29 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
+from fastapi import UploadFile, File
 
 from app.db.database import Base, engine
 
 from app.api.properties import router as properties_router
 from app.api.users import router as users_router
+from app.api.contracts import router as contracts_router
 
 from sqlalchemy import text
 
 import app.models
 import shutil
-import time
 
 app = FastAPI()
 
-
 @app.on_event("startup")
 def create_tables():
-    # Wait for the database to become available (useful during container startup)
-    max_retries = 30
-    for attempt in range(1, max_retries + 1):
-        try:
-            with engine.connect() as conn:
-                break
-        except Exception:
-            if attempt == max_retries:
-                raise
-            time.sleep(1)
-
     Base.metadata.create_all(bind=engine)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(users_router)
 app.include_router(properties_router)
+app.include_router(contracts_router)
 
 @app.get("/")
 def read_root():
