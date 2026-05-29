@@ -1,6 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from fastapi import UploadFile, File
 
 from app.db.database import Base, engine
 
@@ -9,17 +8,19 @@ from app.api.users import router as users_router
 
 from sqlalchemy import text
 
-import app.models 
+import app.models
 import shutil
 
 app = FastAPI()
+
+@app.on_event("startup")
+def create_tables():
+    Base.metadata.create_all(bind=engine)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(users_router)
 app.include_router(properties_router)
-
-#Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def read_root():
