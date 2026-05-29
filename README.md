@@ -2,6 +2,8 @@
 
 A containerized property management backend built with Python, FastAPI, PostgreSQL, and Docker Compose.
 
+Currently for local and personal use.
+
 Designed as a learning-focused but production-style backend project, with future plans for authentication, property management, and cloud deployment on AWS.
 
 ---
