@@ -10,11 +10,24 @@ from sqlalchemy import text
 
 import app.models
 import shutil
+import time
 
 app = FastAPI()
 
+
 @app.on_event("startup")
 def create_tables():
+    # Wait for the database to become available (useful during container startup)
+    max_retries = 30
+    for attempt in range(1, max_retries + 1):
+        try:
+            with engine.connect() as conn:
+                break
+        except Exception:
+            if attempt == max_retries:
+                raise
+            time.sleep(1)
+
     Base.metadata.create_all(bind=engine)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

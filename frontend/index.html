@@ -14,24 +14,34 @@
     </style>
   </head>
   <body>
-    <h1>mi_calli Admin Test UI</h1>
-    <p>Use this page to create an admin, add a property, and create tenants.</p>
     <div id="message" class="message"></div>
-    <section class="card">
-      <h2>Create admin user</h2>
-      <form id="admin-form">
-        <input id="admin-username" placeholder="Admin username" required />
-        <input id="admin-email" type="email" placeholder="Admin email" required />
-        <input id="admin-password" type="password" placeholder="Admin password" required />
-        <button type="submit">Create admin</button>
+
+    <section id="login-section" class="card">
+      <h2>Login or Register (admin)</h2>
+      <form id="login-form" style="margin-bottom:0.75rem;">
+        <label for="login-select">Login as admin:</label>
+        <select id="login-select"><option value="">-- choose admin --</option></select>
+        <button id="login-button" type="button">Login</button>
+      </form>
+
+      <form id="register-form">
+        <h3>Register new admin</h3>
+        <input id="reg-username" placeholder="Admin username" required />
+        <input id="reg-email" type="email" placeholder="Admin email" required />
+        <input id="reg-password" type="password" placeholder="Admin password" required />
+        <button type="submit">Register & Enter dashboard</button>
       </form>
     </section>
-    <section class="card">
+
+    <section id="dashboard-section" class="card" style="display:none;">
       <h2>Admin dashboard</h2>
-      <label for="admin-select">Select admin:</label>
-      <select id="admin-select"><option value="">-- choose admin --</option></select>
-      <button id="refresh-button" type="button">Refresh data</button>
-      <div id="dashboard" style="display:none; margin-top:1rem;">
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">
+        <div>Logged in as <strong id="current-admin-name"></strong></div>
+        <button id="logout-button" type="button">Logout</button>
+        <button id="refresh-button" type="button">Refresh data</button>
+      </div>
+
+      <div id="dashboard">
         <form id="property-form">
           <h3>Create property</h3>
           <input id="property-name" placeholder="Property name" required />
@@ -51,6 +61,7 @@
         </form>
       </div>
     </section>
+
     <section class="card">
       <h2>Current properties</h2>
       <div id="properties-list">Loading...</div>

@@ -1,6 +1,11 @@
 const messageEl = document.getElementById("message");
-const adminSelect = document.getElementById("admin-select");
-const dashboardEl = document.getElementById("dashboard");
+const loginSelect = document.getElementById("login-select");
+const loginButton = document.getElementById("login-button");
+const registerForm = document.getElementById("register-form");
+const dashboardSection = document.getElementById("dashboard-section");
+const currentAdminName = document.getElementById("current-admin-name");
+const logoutButton = document.getElementById("logout-button");
+const refreshButton = document.getElementById("refresh-button");
 const propertySelect = document.getElementById("property-select");
 const propertiesList = document.getElementById("properties-list");
 
@@ -10,27 +15,28 @@ function showMessage(text) {
   messageEl.textContent = text;
 }
 
-function fetchData() {
-  Promise.all([fetch("/api/users"), fetch("/api/properties")])
-    .then(async ([usersRes, propsRes]) => {
-      const users = await usersRes.json();
-      const properties = await propsRes.json();
-      updateAdminSelect(users);
-      updatePropertySelect(properties);
-      renderProperties(properties, users);
-      showMessage("");
-    })
-    .catch(() => showMessage("Unable to load data. Make sure docker compose is running."));
+async function fetchData() {
+  try {
+    const [usersRes, propsRes] = await Promise.all([fetch("/api/users"), fetch("/api/properties")]);
+    const users = await usersRes.json();
+    const properties = await propsRes.json();
+    updateLoginSelect(users);
+    updatePropertySelect(properties);
+    renderProperties(properties, users);
+    showMessage("");
+  } catch (e) {
+    showMessage("Unable to load data. Make sure docker compose is running.");
+  }
 }
 
-function updateAdminSelect(users) {
-  adminSelect.innerHTML = '<option value="">-- choose admin --</option>';
+function updateLoginSelect(users) {
+  loginSelect.innerHTML = '<option value="">-- choose admin --</option>';
   const admins = users.filter((user) => user.role === "admin");
   admins.forEach((admin) => {
     const option = document.createElement("option");
     option.value = admin.id;
     option.textContent = `${admin.username} (${admin.email})`;
-    adminSelect.appendChild(option);
+    loginSelect.appendChild(option);
   });
 }
 
@@ -76,93 +82,114 @@ function renderProperties(properties, users) {
   });
 }
 
-function handleAdminCreate(event) {
+registerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const username = document.getElementById("admin-username").value.trim();
-  const email = document.getElementById("admin-email").value.trim();
-  const password = document.getElementById("admin-password").value;
+  const username = document.getElementById("reg-username").value.trim();
+  const email = document.getElementById("reg-email").value.trim();
+  const password = document.getElementById("reg-password").value;
 
-  fetch("/api/users", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role: "admin", username, email, password }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.detail) {
-        showMessage(data.detail);
-        return;
-      }
-      showMessage(`Admin created: ${data.username}`);
-      document.getElementById("admin-form").reset();
-      fetchData();
-    })
-    .catch(() => showMessage("Failed to create admin."));
-}
+  try {
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "admin", username, email, password }),
+    });
+    const data = await res.json();
+    if (data.detail) {
+      showMessage(data.detail);
+      return;
+    }
+    showMessage(`Admin created: ${data.username}`);
+    document.getElementById("register-form").reset();
+    // set as current admin and show dashboard
+    currentAdminId = data.id;
+    enterDashboard(data);
+    fetchData();
+  } catch (e) {
+    showMessage("Failed to create admin.");
+  }
+});
 
-function handleAdminChange() {
-  currentAdminId = adminSelect.value;
-  dashboardEl.style.display = currentAdminId ? "block" : "none";
-}
-
-function handlePropertyCreate(event) {
-  event.preventDefault();
-  if (!currentAdminId) {
-    showMessage("Select an admin first.");
+loginButton.addEventListener("click", async () => {
+  const id = loginSelect.value;
+  if (!id) {
+    showMessage("Select an admin to login.");
     return;
   }
+  // fetch user info and enter dashboard
+  try {
+    const res = await fetch(`/api/users`);
+    const users = await res.json();
+    const user = users.find((u) => String(u.id) === String(id));
+    if (!user) {
+      showMessage("Admin not found");
+      return;
+    }
+    currentAdminId = user.id;
+    enterDashboard(user);
+  } catch (e) {
+    showMessage("Failed to login.");
+  }
+});
 
+function enterDashboard(user) {
+  currentAdminName.textContent = `${user.username} (${user.email})`;
+  dashboardSection.style.display = "block";
+  document.getElementById("login-section").style.display = "none";
+}
+
+logoutButton.addEventListener("click", () => {
+  currentAdminId = null;
+  dashboardSection.style.display = "none";
+  document.getElementById("login-section").style.display = "block";
+  showMessage("");
+});
+
+refreshButton.addEventListener("click", fetchData);
+
+document.getElementById("property-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentAdminId) return showMessage("Select an admin first.");
   const name = document.getElementById("property-name").value.trim();
   const address = document.getElementById("property-address").value.trim();
   const image_url = document.getElementById("property-image").value.trim() || null;
+  try {
+    const res = await fetch("/api/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, address, image_url, owner_id: Number(currentAdminId) }),
+    });
+    const data = await res.json();
+    if (data.detail) return showMessage(data.detail);
+    showMessage(`Property created: ${data.name}`);
+    document.getElementById("property-form").reset();
+    fetchData();
+  } catch (e) {
+    showMessage("Failed to create property.");
+  }
+});
 
-  fetch("/api/properties", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, address, image_url, owner_id: Number(currentAdminId) }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.detail) {
-        showMessage(data.detail);
-        return;
-      }
-      showMessage(`Property created: ${data.name}`);
-      document.getElementById("property-form").reset();
-      fetchData();
-    })
-    .catch(() => showMessage("Failed to create property."));
-}
-
-function handleTenantCreate(event) {
+document.getElementById("tenant-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const username = document.getElementById("tenant-username").value.trim();
   const email = document.getElementById("tenant-email").value.trim();
   const password = document.getElementById("tenant-password").value;
   const property_id = Number(document.getElementById("property-select").value);
+  try {
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "tenant", username, email, password, property_id }),
+    });
+    const data = await res.json();
+    if (data.detail) return showMessage(data.detail);
+    showMessage(`Tenant created: ${data.username}`);
+    document.getElementById("tenant-form").reset();
+    fetchData();
+  } catch (e) {
+    showMessage("Failed to create tenant.");
+  }
+});
 
-  fetch("/api/users", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role: "tenant", username, email, password, property_id }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.detail) {
-        showMessage(data.detail);
-        return;
-      }
-      showMessage(`Tenant created: ${data.username}`);
-      document.getElementById("tenant-form").reset();
-      fetchData();
-    })
-    .catch(() => showMessage("Failed to create tenant."));
-}
-
-document.getElementById("admin-form").addEventListener("submit", handleAdminCreate);
-document.getElementById("admin-select").addEventListener("change", handleAdminChange);
-document.getElementById("refresh-button").addEventListener("click", fetchData);
-document.getElementById("property-form").addEventListener("submit", handlePropertyCreate);
-document.getElementById("tenant-form").addEventListener("submit", handleTenantCreate);
-
+// initialize
 fetchData();
