@@ -1,6 +1,10 @@
 from __future__ import with_statement
 
 import os
+import sys
+
+# Ensure the project root (/app) is on PYTHONPATH so `from app...` imports work
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
