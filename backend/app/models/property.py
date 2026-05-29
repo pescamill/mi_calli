@@ -18,12 +18,22 @@ class Property(Base):
     owner_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=False
+        nullable=False,
     )
 
     created_at = Column(
         DateTime(timezone=True),
-        server_default=func.now()
+        server_default=func.now(),
     )
 
-    owner = relationship("User")
+    owner = relationship(
+        "User",
+        back_populates="owned_properties",
+        foreign_keys=[owner_id],
+    )
+
+    tenants = relationship(
+        "User",
+        back_populates="assigned_property",
+        foreign_keys="User.property_id",
+    )

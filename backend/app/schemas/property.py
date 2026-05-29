@@ -6,6 +6,7 @@ class PropertyCreate(BaseModel):
     name: str
     address: str
     owner_id: int
+    image_url: str | None = None
 
 
 class PropertyResponse(BaseModel):
