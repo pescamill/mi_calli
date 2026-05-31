@@ -3,8 +3,8 @@ from datetime import datetime
 
 
 class ContractCreate(BaseModel):
-    property_id: int
     tenant_id: int
+    property_id: int
     year: int
     month: int
     amount: float
@@ -12,8 +12,8 @@ class ContractCreate(BaseModel):
 
 class ContractResponse(BaseModel):
     id: int
-    property_id: int
     tenant_id: int
+    property_id: int
     year: int
     month: int
     amount: float

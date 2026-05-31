@@ -7,7 +7,6 @@ class UserCreate(BaseModel):
     password: str
     email: str
     role: str = "tenant"
-    property_id: int | None = None
 
 
 class UserResponse(BaseModel):
@@ -15,7 +14,6 @@ class UserResponse(BaseModel):
     username: str
     role: str
     email: str
-    property_id: int | None = None
     created_at: datetime
 
     class Config:

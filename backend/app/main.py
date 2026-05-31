@@ -3,8 +3,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import UploadFile, File
 
 from app.db.database import Base, engine
-import time
-import logging
 
 from app.api.properties import router as properties_router
 from app.api.users import router as users_router
@@ -17,18 +15,6 @@ import shutil
 
 app = FastAPI()
 
-@app.on_event("startup")
-def create_tables():
-    """Try once to create tables at startup; if DB isn't ready, log and continue.
-
-    Migrations are handled by the separate `migrate` service. Use `/setup`
-    to force table creation manually if needed.
-    """
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        import logging
-        logging.warning("Could not create tables at startup: %s", e)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
@@ -67,12 +53,3 @@ def upload_file(file: UploadFile = File(...)):
     return {
         "url": f"/uploads/{file.filename}"
     }
-
-@app.post("/setup")
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-
-    return {
-        "message": "database tables created"
-    }
-
