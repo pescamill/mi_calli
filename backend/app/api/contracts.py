@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 import os
 from datetime import datetime
 import uuid
-import smtplib
-from email.message import EmailMessage
+import resend
+import logging
+
 
 from app.db.database import SessionLocal
 from app.models import User, Property, Contract, Payment
@@ -14,28 +15,28 @@ from sqlalchemy.exc import ProgrammingError
 
 router = APIRouter()
 
+logger = logging.getLogger("uvicorn.error")
+
 def is_admin(db: Session, admin_id: int) -> bool:
     admin = db.query(User).filter(User.id == admin_id).first()
     return bool(admin and admin.role == "admin")
 
 def send_signing_email(to_email: str, tenant_name: str, link: str):
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    from_addr = os.getenv("SMTP_FROM", smtp_user or "no-reply@example.com")
-    if not smtp_host or not smtp_user or not smtp_password:
+    api_key = os.getenv("RESEND_API_KEY")
+    if not api_key:
         return False
-    msg = EmailMessage()
-    msg["Subject"] = "Please sign your rent contract"
-    msg["From"] = from_addr
-    msg["To"] = to_email
-    msg.set_content(f"Hello {tenant_name},\n\nPlease sign your contract by visiting: {link}\n\nThanks.")
-    with smtplib.SMTP(smtp_host, smtp_port) as s:
-        s.starttls()
-        s.login(smtp_user, smtp_password)
-        s.send_message(msg)
-    return True
+    resend.api_key = api_key
+    try:
+        resend.Emails.send({
+            "from": os.getenv("SMTP_FROM", "onboarding@resend.dev"),
+            "to": to_email,
+            "subject": "Please sign your rent contract",
+            "html": f"<p>Hello {tenant_name},</p><p>Please sign your contract by visiting: <a href='{link}'>{link}</a></p>",
+        })
+        return True
+    except Exception as e:
+        logger.error("Failed to send email: %s", e)
+        return False
 
 @router.post("/contracts", response_model=ContractResponse)
 def create_contract(contract_data: ContractCreate):
@@ -139,6 +140,56 @@ def generate_reminders(payload: dict):
     db.close()
     return {"created": len(created)}
 
+@router.post("/contracts/{contract_id}/admin_sign")
+def admin_sign(contract_id: int, payload: dict):
+    admin_id = payload.get("admin_id")
+    db: Session = SessionLocal()
+    if not admin_id or not is_admin(db, int(admin_id)):
+        db.close()
+        raise HTTPException(status_code=403, detail="admin privileges required")
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        db.close()
+        raise HTTPException(status_code=404, detail="contract not found")
+    contract.admin_signed_at = datetime.utcnow()
+    db.add(contract)
+    db.commit()
+    db.refresh(contract)
+    db.close()
+    return {"signed": True, "contract_id": contract.id}
+
+@router.get("/admin/year/{year}")
+def year_summary(year: int):
+    db: Session = SessionLocal()
+    try:
+        contracts = db.query(Contract).filter(Contract.year == year).all()
+    except ProgrammingError:
+        db.close()
+        raise HTTPException(status_code=503, detail="Database tables missing; run migrations")
+    result = {}
+    for c in contracts:
+        prop = c.property
+        pid = str(prop.id)
+        if pid not in result:
+            result[pid] = {"property_id": prop.id, "property": prop.name, "months": {}}
+        paid = sum(float(p.amount) for p in c.payments)
+        month_key = str(c.month)
+        if month_key not in result[pid]["months"]:
+            result[pid]["months"][month_key] = []
+        result[pid]["months"][month_key].append({
+            "contract_id": c.id,
+            "tenant": c.tenant.username,
+            "tenant_id": c.tenant_id,
+            "amount": float(c.amount),
+            "paid": paid,
+            "paid_full": paid >= float(c.amount),
+            "admin_signed": c.admin_signed_at is not None,
+            "tenant_signed": c.tenant_signed_at is not None,
+            "file": c.file_path,
+        })
+    db.close()
+    return result
+
 @router.get("/admin/month/{year}/{month}")
 def month_summary(year: int, month: int):
     db: Session = SessionLocal()
@@ -186,7 +237,9 @@ def generate_token(contract_id: int, payload: dict):
     sent = False
     try:
         sent = send_signing_email(contract.tenant.email, contract.tenant.username, link)
-    except Exception:
+        logger.info("Email sent=%s to=%s", sent, contract.tenant.email)
+    except Exception as e:
+        logger.error("Email exception: %s", e)
         sent = False
     db.close()
     return {"token": token, "link": link, "emailed": bool(sent)}
