@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session, joinedload
-from app.db.database import SessionLocal
+from datetime import datetime
+from app.db.database import get_db
 from app.models import User, Property, PropertyImage, HouseExpense
 from app.schemas.property import (
     PropertyCreate, PropertyResponse,
@@ -10,8 +11,7 @@ from app.schemas.property import (
 router = APIRouter()
 
 @router.post("/properties", response_model=PropertyResponse)
-def create_property(data: PropertyCreate):
-    db: Session = SessionLocal()
+def create_property(data: PropertyCreate, db: Session = Depends(get_db)):
     owner = db.query(User).filter(User.id == data.owner_id).first()
     if not owner:
         raise HTTPException(status_code=404, detail="owner not found")
@@ -21,24 +21,17 @@ def create_property(data: PropertyCreate):
     db.add(prop)
     db.commit()
     db.refresh(prop)
-    # Eagerly load images before closing session
-    _ = prop.images
-    db.close()
-    return prop
+    return db.query(Property).options(joinedload(Property.images)).filter(Property.id == prop.id).first()
 
 @router.get("/properties", response_model=list[PropertyResponse])
-def get_properties():
-    db: Session = SessionLocal()
-    props = db.query(Property).options(joinedload(Property.images)).all()
-    db.close()
-    return props
+def get_properties(db: Session = Depends(get_db)):
+    return db.query(Property).options(joinedload(Property.images)).all()
 
 @router.post("/properties/{property_id}/images")
-def add_property_image(property_id: int, payload: dict):
+def add_property_image(property_id: int, payload: dict, db: Session = Depends(get_db)):
     url = payload.get("url")
     if not url:
         raise HTTPException(status_code=400, detail="url required")
-    db: Session = SessionLocal()
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="property not found")
@@ -46,12 +39,10 @@ def add_property_image(property_id: int, payload: dict):
     db.add(img)
     db.commit()
     db.refresh(img)
-    db.close()
     return {"id": img.id, "url": img.url}
 
 @router.delete("/properties/{property_id}/images/{image_id}")
-def delete_property_image(property_id: int, image_id: int):
-    db: Session = SessionLocal()
+def delete_property_image(property_id: int, image_id: int, db: Session = Depends(get_db)):
     img = db.query(PropertyImage).filter(
         PropertyImage.id == image_id,
         PropertyImage.property_id == property_id
@@ -60,12 +51,10 @@ def delete_property_image(property_id: int, image_id: int):
         raise HTTPException(status_code=404, detail="image not found")
     db.delete(img)
     db.commit()
-    db.close()
     return {"deleted": True}
 
 @router.post("/properties/{property_id}/expenses", response_model=HouseExpenseResponse)
-def add_expense(property_id: int, data: HouseExpenseCreate):
-    db: Session = SessionLocal()
+def add_expense(property_id: int, data: HouseExpenseCreate, db: Session = Depends(get_db)):
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="property not found")
@@ -80,20 +69,14 @@ def add_expense(property_id: int, data: HouseExpenseCreate):
     db.add(expense)
     db.commit()
     db.refresh(expense)
-    db.close()
     return expense
 
 @router.get("/properties/{property_id}/expenses", response_model=list[HouseExpenseResponse])
-def get_expenses(property_id: int):
-    db: Session = SessionLocal()
-    expenses = db.query(HouseExpense).filter(HouseExpense.property_id == property_id).all()
-    db.close()
-    return expenses
+def get_expenses(property_id: int, db: Session = Depends(get_db)):
+    return db.query(HouseExpense).filter(HouseExpense.property_id == property_id).all()
 
 @router.post("/properties/{property_id}/expenses/{expense_id}/mark_paid")
-def mark_expense_paid(property_id: int, expense_id: int):
-    from datetime import datetime
-    db: Session = SessionLocal()
+def mark_expense_paid(property_id: int, expense_id: int, db: Session = Depends(get_db)):
     expense = db.query(HouseExpense).filter(
         HouseExpense.id == expense_id,
         HouseExpense.property_id == property_id
@@ -103,6 +86,4 @@ def mark_expense_paid(property_id: int, expense_id: int):
     expense.paid_at = datetime.utcnow()
     db.add(expense)
     db.commit()
-    db.refresh(expense)
-    db.close()
     return {"paid": True}

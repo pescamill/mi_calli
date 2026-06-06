@@ -1,23 +1,31 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session, joinedload
-from app.db.database import SessionLocal
+from app.db.database import get_db
 from app.models import Property, Room, RoomImage, Contract
-from app.schemas import RoomCreate, RoomUpdate, RoomResponse
+from app.schemas.rooms import RoomCreate, RoomUpdate, RoomResponse
 
 router = APIRouter()
 
-def room_to_response(room, db) -> dict:
+def enrich_room(room: Room, db: Session) -> dict:
     active_contract = db.query(Contract).filter(
         Contract.room_id == room.id,
         Contract.terminated_at == None
     ).first()
-    data = RoomResponse.from_orm(room).dict()
-    data["occupied"] = active_contract is not None
+    data = {
+        "id": room.id,
+        "property_id": room.property_id,
+        "name": room.name,
+        "default_amount": float(room.default_amount) if room.default_amount else None,
+        "default_pay_day": room.default_pay_day,
+        "default_duration_months": room.default_duration_months,
+        "created_at": room.created_at,
+        "images": [{"id": img.id, "url": img.url, "created_at": img.created_at} for img in room.images],
+        "occupied": active_contract is not None,
+    }
     return data
 
 @router.post("/rooms", response_model=RoomResponse)
-def create_room(data: RoomCreate):
-    db: Session = SessionLocal()
+def create_room(data: RoomCreate, db: Session = Depends(get_db)):
     prop = db.query(Property).filter(Property.id == data.property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="property not found")
@@ -30,37 +38,27 @@ def create_room(data: RoomCreate):
     )
     db.add(room)
     db.commit()
-    db.refresh(room)
-    result = room_to_response(room, db)
-    db.close()
-    return result
-
+    room = db.query(Room).options(joinedload(Room.images)).filter(Room.id == room.id).first()
+    return enrich_room(room, db)
 
 @router.get("/rooms", response_model=list[RoomResponse])
-def get_rooms(property_id: int | None = None):
-    db: Session = SessionLocal()
+def get_rooms(property_id: int | None = None, db: Session = Depends(get_db)):
     query = db.query(Room).options(joinedload(Room.images))
     if property_id:
         query = query.filter(Room.property_id == property_id)
     rooms = query.all()
-    result = [room_to_response(r, db) for r in rooms]
-    db.close()
-    return result
+    return [enrich_room(r, db) for r in rooms]
 
 @router.get("/rooms/{room_id}", response_model=RoomResponse)
-def get_room(room_id: int):
-    db: Session = SessionLocal()
-    room = db.query(Room).filter(Room.id == room_id).first()
+def get_room(room_id: int, db: Session = Depends(get_db)):
+    room = db.query(Room).options(joinedload(Room.images)).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="room not found")
-    result = room_to_response(room, db)
-    db.close()
-    return result
+    return enrich_room(room, db)
 
 @router.patch("/rooms/{room_id}", response_model=RoomResponse)
-def update_room(room_id: int, data: RoomUpdate):
-    db: Session = SessionLocal()
-    room = db.query(Room).filter(Room.id == room_id).first()
+def update_room(room_id: int, data: RoomUpdate, db: Session = Depends(get_db)):
+    room = db.query(Room).options(joinedload(Room.images)).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="room not found")
     if data.name is not None:
@@ -73,17 +71,14 @@ def update_room(room_id: int, data: RoomUpdate):
         room.default_duration_months = data.default_duration_months
     db.add(room)
     db.commit()
-    db.refresh(room)
-    result = room_to_response(room, db)
-    db.close()
-    return result
+    room = db.query(Room).options(joinedload(Room.images)).filter(Room.id == room_id).first()
+    return enrich_room(room, db)
 
 @router.post("/rooms/{room_id}/images")
-def add_room_image(room_id: int, payload: dict):
+def add_room_image(room_id: int, payload: dict, db: Session = Depends(get_db)):
     url = payload.get("url")
     if not url:
         raise HTTPException(status_code=400, detail="url required")
-    db: Session = SessionLocal()
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="room not found")
@@ -91,12 +86,10 @@ def add_room_image(room_id: int, payload: dict):
     db.add(img)
     db.commit()
     db.refresh(img)
-    db.close()
     return {"id": img.id, "url": img.url}
 
 @router.delete("/rooms/{room_id}/images/{image_id}")
-def delete_room_image(room_id: int, image_id: int):
-    db: Session = SessionLocal()
+def delete_room_image(room_id: int, image_id: int, db: Session = Depends(get_db)):
     img = db.query(RoomImage).filter(
         RoomImage.id == image_id,
         RoomImage.room_id == room_id
@@ -105,5 +98,4 @@ def delete_room_image(room_id: int, image_id: int):
         raise HTTPException(status_code=404, detail="image not found")
     db.delete(img)
     db.commit()
-    db.close()
     return {"deleted": True}

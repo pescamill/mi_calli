@@ -1,12 +1,13 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from app.db.database import Base, engine, SessionLocal
+from app.db.database import engine, SessionLocal
 from app.api.properties import router as properties_router
 from app.api.users import router as users_router
 from app.api.contracts import router as contracts_router, send_email, effective_pay_day
-from app.api import rooms as rooms_module
+from app.api.rooms import router as rooms_router
 from app.models import Contract, ContractMonth, User, Property, Room
 from sqlalchemy import text
+from sqlalchemy.orm import joinedload
 import app.models
 import shutil
 import os
@@ -34,23 +35,24 @@ async def poll_google_sheet():
                 reader = csv.reader(io.StringIO(res.text))
                 next(reader)
                 db = SessionLocal()
-                for parts in reader:
-                    if not parts:
-                        continue
-                    contract_id_str = parts[-1].strip()
-                    if not contract_id_str.isdigit():
-                        continue
-                    contract_id = int(contract_id_str)
-                    contract = db.query(Contract).filter(
-                        Contract.id == contract_id,
-                        Contract.tenant_signed_at == None
-                    ).first()
-                    if contract:
-                        contract.tenant_signed_at = datetime.utcnow()
-                        db.add(contract)
-                        db.commit()
-                        logger.info("Auto-signed contract %d from Google Sheet", contract_id)
-                db.close()
+                try:
+                    for parts in reader:
+                        if not parts:
+                            continue
+                        contract_id_str = parts[-1].strip()
+                        if not contract_id_str.isdigit():
+                            continue
+                        contract_id = int(contract_id_str)
+                        contract = db.query(Contract).filter(
+                            Contract.id == contract_id,
+                            Contract.tenant_signed_at == None
+                        ).first()
+                        if contract:
+                            contract.tenant_signed_at = datetime.utcnow()
+                            db.commit()
+                            logger.info("Auto-signed contract %d from Google Sheet", contract_id)
+                finally:
+                    db.close()
         except Exception as e:
             logger.error("Sheet polling error: %s", e)
         await asyncio.sleep(120)
@@ -61,80 +63,78 @@ async def send_daily_reminders():
         try:
             today = date.today()
             db = SessionLocal()
+            try:
+                contract_months = db.query(ContractMonth).options(
+                    joinedload(ContractMonth.payments),
+                    joinedload(ContractMonth.contract).joinedload(Contract.tenant),
+                    joinedload(ContractMonth.contract).joinedload(Contract.room).joinedload(Room.property),
+                ).filter(
+                    ContractMonth.year == today.year,
+                    ContractMonth.month == today.month,
+                ).all()
 
-            # Find all contract months for current month that are unpaid
-            contract_months = db.query(ContractMonth).filter(
-                ContractMonth.year == today.year,
-                ContractMonth.month == today.month,
-            ).all()
-
-            for cm in contract_months:
-                contract = cm.contract
-                if not contract or contract.terminated_at:
-                    continue
-
-                # Check if today is 3 days before pay day
-                pay_day = effective_pay_day(contract.pay_day, today.year, today.month)
-                reminder_day = pay_day - 3
-                if reminder_day < 1:
-                    reminder_day = 1
-                if today.day < reminder_day:
-                    continue
-
-                # Check if fully paid
-                total_paid = round(sum(float(p.amount) for p in cm.payments), 2)
-                amount_due = round(float(contract.amount), 2)
-                if total_paid >= amount_due:
-                    continue
-
-                # Check if reminder already sent today
-                if cm.reminder_sent_at:
-                    last_sent = cm.reminder_sent_at.date() if hasattr(cm.reminder_sent_at, 'date') else cm.reminder_sent_at
-                    if hasattr(last_sent, 'date'):
-                        last_sent = last_sent.date()
-                    if last_sent >= today:
+                for cm in contract_months:
+                    contract = cm.contract
+                    if not contract or contract.terminated_at:
                         continue
 
-                room = contract.room
-                prop = db.query(Property).filter(Property.id == room.property_id).first()
-                tenant = contract.tenant
-                owner = db.query(User).filter(User.id == prop.owner_id).first()
-                if not prop or not tenant or not owner:
-                    continue
+                    pay_day = effective_pay_day(contract.pay_day, today.year, today.month)
+                    reminder_day = max(1, pay_day - 3)
+                    if today.day < reminder_day:
+                        continue
 
-                remaining = amount_due - total_paid
-                month_name = datetime(today.year, today.month, 1).strftime("%B %Y")
+                    total_paid = round(sum(float(p.amount) for p in cm.payments), 2)
+                    amount_due = round(float(contract.amount), 2)
+                    if total_paid >= amount_due:
+                        continue
 
-                html = f"""
-                    <p>Hi,</p>
-                    <p>Rent is due for <strong>{room.name}</strong> at <strong>{prop.name}</strong>.</p>
-                    <table style="border-collapse:collapse;margin-top:1rem;">
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Tenant</td><td><strong>{tenant.username}</strong></td></tr>
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Room</td><td><strong>{room.name}</strong></td></tr>
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Month</td><td><strong>{month_name}</strong></td></tr>
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Due date</td><td><strong>{pay_day} {month_name}</strong></td></tr>
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Amount due</td><td><strong>${amount_due:.2f}</strong></td></tr>
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Paid so far</td><td><strong>${total_paid:.2f}</strong></td></tr>
-                        <tr><td style="padding:4px 16px 4px 0;color:#888;">Remaining</td><td><strong>${remaining:.2f}</strong></td></tr>
-                    </table>
-                    <p style="margin-top:1rem;color:#888;font-size:12px;">
-                        This reminder will stop once the owner marks the payment as received.
-                    </p>
-                """
+                    # Skip if already sent today
+                    if cm.reminder_sent_at:
+                        last = cm.reminder_sent_at
+                        if hasattr(last, 'date'):
+                            last = last.date()
+                        if last >= today:
+                            continue
 
-                recipients = [r.email for r in [tenant, owner] if r and r.email]
-                sent = send_email(recipients, f"Rent due — {room.name} at {prop.name} — {month_name}", html)
-                if sent:
-                    cm.reminder_sent_at = datetime.utcnow()
-                    db.add(cm)
-                    db.commit()
+                    room = contract.room
+                    prop = room.property
+                    tenant = contract.tenant
+                    owner = db.query(User).filter(User.id == prop.owner_id).first()
+                    if not prop or not tenant or not owner:
+                        continue
 
-            db.close()
+                    remaining = amount_due - total_paid
+                    month_name = datetime(today.year, today.month, 1).strftime("%B %Y")
+
+                    html = f"""
+                        <p>Hi,</p>
+                        <p>Rent is due for <strong>{room.name}</strong> at <strong>{prop.name}</strong>.</p>
+                        <table style="border-collapse:collapse;margin-top:1rem;">
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Tenant</td><td><strong>{tenant.username}</strong></td></tr>
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Room</td><td><strong>{room.name}</strong></td></tr>
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Month</td><td><strong>{month_name}</strong></td></tr>
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Due date</td><td><strong>{pay_day} {month_name}</strong></td></tr>
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Amount due</td><td><strong>${amount_due:.2f}</strong></td></tr>
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Paid so far</td><td><strong>${total_paid:.2f}</strong></td></tr>
+                            <tr><td style="padding:4px 16px 4px 0;color:#888;">Remaining</td><td><strong>${remaining:.2f}</strong></td></tr>
+                        </table>
+                        <p style="margin-top:1rem;color:#888;font-size:12px;">
+                            This reminder will stop once the owner marks the payment as received.
+                        </p>
+                    """
+
+                    recipients = [r.email for r in [tenant, owner] if r and r.email]
+                    sent = send_email(recipients, f"Rent due — {room.name} at {prop.name} — {month_name}", html)
+                    if sent:
+                        cm.reminder_sent_at = datetime.utcnow()
+                        db.commit()
+
+            finally:
+                db.close()
 
         except Exception as e:
             logger.error("Daily reminder error: %s", e)
 
-        # Sleep until 9am UTC next day
         now = datetime.utcnow()
         next_run = datetime(now.year, now.month, now.day, 9, 0, 0)
         if now >= next_run:
@@ -155,7 +155,7 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(users_router)
 app.include_router(properties_router)
-app.include_router(rooms_module.router)
+app.include_router(rooms_router)
 app.include_router(contracts_router)
 
 
