@@ -3,122 +3,386 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>mi_calli Admin UI</title>
+<title>mi_calli</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; }
-body { font-family: Arial, sans-serif; padding: 1.5rem; max-width: 1100px; margin: auto; background: #f9f9f7; color: #1a1a1a; }
-h1, h2, h3 { margin-top: 0; }
-form { display: grid; gap: 0.75rem; margin-bottom: 1rem; max-width: 420px; }
-input, select, button { padding: 0.5rem; font-size: 1rem; }
-.card { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; background: #fff; border-radius: 8px; }
-.message { color: #b33; font-weight: bold; min-height: 1.5rem; margin-bottom: 0.5rem; }
-.grid-wrap { overflow-x: auto; }
-table.year-grid { border-collapse: collapse; width: 100%; font-size: 13px; }
-table.year-grid th { padding: 6px 8px; text-align: center; font-weight: 500; color: #555; border-bottom: 1px solid #e0e0e0; }
-table.year-grid td.prop-name { padding: 8px; font-weight: 500; white-space: nowrap; border-right: 1px solid #e0e0e0; }
-table.year-grid td.cell { width: 52px; text-align: center; padding: 4px; }
-.dot { display: inline-block; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; transition: opacity 0.15s; }
-.dot:hover { opacity: 0.75; }
-.dot-paid { background: #3B6D11; }
-.dot-unpaid { background: #A32D2D; }
-.dot-none { background: #D3D1C7; cursor: default; }
+:root {
+  --bg: #0e0e0f;
+  --surface: #161618;
+  --surface2: #1e1e21;
+  --surface3: #26262a;
+  --border: #2e2e33;
+  --border2: #3a3a40;
+  --text: #e8e8ea;
+  --text2: #9898a0;
+  --text3: #5a5a62;
+  --accent: #c8a96e;
+  --accent2: #a08050;
+  --green: #4a9668;
+  --green-bg: #0f2318;
+  --red: #c45c5c;
+  --red-bg: #1f0f0f;
+  --yellow: #c8a040;
+  --yellow-bg: #1f1a0a;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --nav-h: 56px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; line-height: 1.6; }
+body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; opacity: 0.4; }
+.app { position: relative; z-index: 1; }
+
+/* ── Header ── */
+header { display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: var(--nav-h); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 100; }
+.logo { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 600; color: var(--accent); letter-spacing: -0.02em; white-space: nowrap; }
+.logo span { color: var(--text2); font-weight: 300; font-style: italic; }
+nav { display: flex; gap: 0.25rem; }
+.nav-btn { background: transparent; border: none; color: var(--text3); padding: 0.4rem 0.85rem; border-radius: var(--radius-sm); cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; transition: all 0.15s; }
+.nav-btn:hover { color: var(--text2); background: var(--surface2); }
+.nav-btn.active { color: var(--accent); background: var(--surface2); border: 1px solid var(--border); }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.lang-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text3); padding: 0.3rem 0.6rem; border-radius: var(--radius-sm); cursor: pointer; font-size: 11px; font-family: 'DM Mono', monospace; }
+.lang-btn:hover { color: var(--text2); }
+.admin-pill { background: var(--surface3); border: 1px solid var(--border); border-radius: 20px; padding: 0.25rem 0.75rem; font-size: 11px; color: var(--text2); display: none; }
+.admin-pill.visible { display: block; }
+.admin-pill strong { color: var(--accent); }
+.btn-ghost { background: transparent; color: var(--text3); padding: 0.35rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 11px; font-family: 'DM Mono', monospace; }
+.btn-ghost:hover { color: var(--text2); border-color: var(--border2); }
+
+/* ── Main layout ── */
+main { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem; }
+.message { padding: 0.6rem 1rem; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 1rem; display: none; }
+.message.visible { display: block; background: var(--surface2); border: 1px solid var(--border2); color: var(--accent); }
+.message.error { border-color: var(--red); color: var(--red); }
+
+/* ── Sections ── */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── Cards ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+.card-title { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; letter-spacing: -0.01em; }
+.card-title .label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 400; display: block; margin-bottom: 0.15rem; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+/* ── Forms ── */
+.form-grid { display: grid; gap: 0.65rem; margin-bottom: 0.85rem; }
+.field { display: flex; flex-direction: column; }
+label.field-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem; }
+input, select, textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.8rem; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+textarea { resize: vertical; min-height: 80px; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent2); }
+input::placeholder, textarea::placeholder { color: var(--text3); }
+select option { background: var(--surface2); }
+
+/* ── Buttons ── */
+button { font-family: 'DM Mono', monospace; font-size: 12px; cursor: pointer; border: none; border-radius: var(--radius-sm); transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: #0e0e0f; padding: 0.55rem 1.2rem; font-weight: 500; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary { background: var(--surface3); color: var(--text2); padding: 0.55rem 1.2rem; border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); color: var(--text); }
+.btn-danger { background: transparent; color: var(--red); padding: 0.35rem 0.7rem; border: 1px solid transparent; font-size: 11px; }
+.btn-danger:hover { background: var(--red-bg); border-color: var(--red); }
+.btn-sm { font-size: 11px; padding: 0.3rem 0.65rem; }
+
+/* ── Badges ── */
+.badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 20px; font-size: 10px; font-weight: 500; letter-spacing: 0.04em; }
+.badge-yes { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+.badge-no { background: var(--red-bg); color: var(--red); border: 1px solid transparent; }
+.badge-warn { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-neutral { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+
+/* ── Login ── */
+#login-section { max-width: 460px; margin: 3rem auto; }
+.login-header { text-align: center; margin-bottom: 2rem; }
+.login-logo { font-family: 'Fraunces', serif; font-size: 2.5rem; font-weight: 600; color: var(--accent); letter-spacing: -0.03em; }
+.login-logo span { color: var(--text2); font-style: italic; font-weight: 300; }
+.login-subtitle { color: var(--text3); font-size: 12px; margin-top: 0.4rem; }
+.divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; color: var(--text3); font-size: 11px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Year grid ── */
+.year-controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.year-controls input[type=number] { width: 80px; }
+.year-grid-wrap { overflow-x: auto; }
+table.ygrid { border-collapse: collapse; width: 100%; font-size: 12px; }
+table.ygrid th { padding: 0.45rem 0.35rem; text-align: center; color: var(--text3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 400; border-bottom: 1px solid var(--border); }
+table.ygrid th.prop-th { text-align: left; padding-left: 0; min-width: 120px; }
+table.ygrid td.prop-name { padding: 0.5rem 0.35rem 0.5rem 0; color: var(--text2); font-size: 12px; white-space: nowrap; border-bottom: 1px solid var(--border); }
+table.ygrid td.cell { text-align: center; padding: 0.35rem; border-bottom: 1px solid var(--border); }
+.dot { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.1s; font-size: 9px; font-weight: 500; }
+.dot:hover { transform: scale(1.15); }
+.dot-paid { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+.dot-unpaid { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+.dot-none { background: var(--surface2); border: 1px solid var(--border); cursor: default; }
+.dot-none:hover { transform: none; }
 .detail-row td { padding: 0; }
-.detail-panel { background: #f5f5f2; border-top: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0; padding: 1rem; }
-.detail-panel table { width: 100%; font-size: 13px; border-collapse: collapse; }
-.detail-panel th { text-align: left; padding: 4px 8px; color: #555; font-weight: 500; border-bottom: 1px solid #ddd; }
-.detail-panel td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
-.badge-yes { background: #EAF3DE; color: #27500A; }
-.badge-no { background: #FCEBEB; color: #791F1F; }
-.legend { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; font-size: 13px; color: #555; }
-.legend-dot { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
-button.action-btn { font-size: 12px; padding: 4px 10px; cursor: pointer; background: #fff; border: 1px solid #bbb; border-radius: 4px; }
-button.action-btn:hover { background: #f0f0f0; }
+.detail-panel { background: var(--surface2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 1rem 1.25rem; animation: slideDown 0.15s ease; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.detail-panel table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.detail-panel th { text-align: left; padding: 0.35rem 0.65rem; color: var(--text3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 400; border-bottom: 1px solid var(--border); }
+.detail-panel td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); color: var(--text2); }
+.detail-panel tr:last-child td { border-bottom: none; }
+.legend { display: flex; gap: 1.25rem; margin-bottom: 0.85rem; font-size: 11px; color: var(--text3); }
+.legend-item { display: flex; align-items: center; gap: 0.4rem; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+.actions-cell { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+/* ── Properties / Rooms ── */
+.prop-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.prop-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.prop-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.15s; }
+.prop-header:hover { background: var(--surface2); }
+.prop-header-left h3 { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 600; color: var(--text); }
+.prop-header-left p { font-size: 11px; color: var(--text3); margin-top: 0.15rem; }
+.prop-body { display: none; padding: 1.25rem; border-top: 1px solid var(--border); }
+.prop-body.open { display: block; }
+.rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.room-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; cursor: pointer; transition: border-color 0.15s; position: relative; }
+.room-card:hover { border-color: var(--border2); }
+.room-card.occupied { border-color: var(--green); }
+.room-card.vacant { border-color: var(--border); }
+.room-card h4 { font-family: 'Fraunces', serif; font-size: 0.9rem; color: var(--text); margin-bottom: 0.35rem; }
+.room-card p { font-size: 11px; color: var(--text3); }
+.room-card img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 0.5rem; object-fit: cover; height: 100px; }
+.room-status { position: absolute; top: 0.75rem; right: 0.75rem; }
+
+/* ── Room detail panel ── */
+.room-detail { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-top: 0.75rem; animation: slideDown 0.15s ease; }
+.room-detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+
+/* ── Contract months grid ── */
+.months-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.65rem; margin-top: 0.75rem; }
+.month-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.85rem; }
+.month-card.paid { border-color: var(--green); }
+.month-card.unpaid { border-color: var(--red); }
+.month-card h5 { font-size: 11px; color: var(--text2); margin-bottom: 0.35rem; }
+.month-card .amount { font-size: 13px; color: var(--text); font-weight: 500; }
+.month-card .paid-amount { font-size: 11px; color: var(--text3); }
+
+/* ── Tenants ── */
+.tenant-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.tenant-item { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.tenant-item-left { display: flex; flex-direction: column; }
+.tenant-item-left strong { color: var(--text); font-size: 13px; }
+.tenant-item-left span { color: var(--text3); font-size: 11px; }
+
+/* ── Expenses ── */
+.expense-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.expense-item { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.expense-item-left strong { color: var(--text); }
+.expense-item-left span { color: var(--text3); font-size: 11px; display: block; }
+.expense-item-right { display: flex; align-items: center; gap: 0.75rem; }
+
+/* ── Images strip ── */
+.img-strip { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.img-thumb { position: relative; width: 80px; height: 80px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+.img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.img-thumb .del-img { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.7); color: #fff; border: none; border-radius: 3px; font-size: 10px; padding: 1px 4px; cursor: pointer; }
+
+/* ── Section header ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.section-header h2 { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  main { padding: 1rem; }
+  header { padding: 0 1rem; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  nav { gap: 0; }
+  .nav-btn { padding: 0.4rem 0.5rem; font-size: 10px; }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
 </head>
 <body>
-<div id="message" class="message"></div>
+<div class="app">
+  <header>
+    <div class="logo">mi_<span>calli</span></div>
+    <nav id="main-nav" style="display:none;">
+      <button class="nav-btn active" data-section="dashboard" data-en="Dashboard" data-es="Inicio">Dashboard</button>
+      <button class="nav-btn" data-section="properties" data-en="Properties" data-es="Propiedades">Properties</button>
+      <button class="nav-btn" data-section="tenants" data-en="Tenants" data-es="Inquilinos">Tenants</button>
+      <button class="nav-btn" data-section="expenses" data-en="Expenses" data-es="Gastos">Expenses</button>
+    </nav>
+    <div class="header-right">
+      <button class="lang-btn" id="lang-btn">ES</button>
+      <div class="admin-pill" id="admin-pill">logged in as <strong id="current-admin-name"></strong></div>
+      <button class="btn-ghost" id="logout-button" style="display:none;" data-en="Logout" data-es="Salir">Logout</button>
+    </div>
+  </header>
 
-<section id="login-section" class="card">
-  <h2>Login or Register (admin)</h2>
-  <form id="login-form" style="margin-bottom:0.75rem;">
-    <label for="login-select">Login as admin:</label>
-    <select id="login-select"><option value="">-- choose admin --</option></select>
-    <button id="login-button" type="button">Login</button>
-  </form>
-  <form id="register-form">
-    <h3>Register new admin</h3>
-    <input id="reg-username" placeholder="Admin username" required />
-    <input id="reg-email" type="email" placeholder="Admin email" required />
-    <input id="reg-password" type="password" placeholder="Admin password" required />
-    <button type="submit">Register &amp; Enter dashboard</button>
-  </form>
-</section>
+  <main>
+    <div id="message" class="message"></div>
 
-<section id="dashboard-section" class="card" style="display:none;">
-  <h2>Admin dashboard</h2>
-  <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">
-    <div>Logged in as <strong id="current-admin-name"></strong></div>
-    <button id="logout-button" type="button">Logout</button>
-    <button id="refresh-button" type="button">Refresh data</button>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
-    <form id="property-form" class="card" style="margin:0;">
-      <h3>Create property</h3>
-      <input id="property-name" placeholder="Property name" required />
-      <input id="property-address" placeholder="Address" required />
-      <input id="property-image" placeholder="Image URL (optional)" />
-      <button type="submit">Create property</button>
-    </form>
-
-    <form id="tenant-form" class="card" style="margin:0;">
-      <h3>Create tenant</h3>
-      <input id="tenant-username" placeholder="Tenant username" required />
-      <input id="tenant-email" type="email" placeholder="Tenant email" required />
-      <button type="submit">Create tenant</button>
-    </form>
-  </div>
-
-  <form id="contract-form" class="card">
-    <h3>Assign tenant to property</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-      <select id="contract-tenant-select" required><option value="">-- select tenant --</option></select>
-      <select id="contract-property-select" required><option value="">-- select property --</option></select>
-      <input id="contract-amount" type="number" placeholder="Monthly rent amount" required />
-      <div style="display:flex;gap:0.5rem;align-items:center;">
-        <label>Year <input id="contract-year" type="number" value="2026" style="width:5rem;" /></label>
-        <label>Month <input id="contract-month" type="number" value="5" min="1" max="12" style="width:4rem;" /></label>
+    <!-- ── Login ── -->
+    <div id="login-section">
+      <div class="login-header">
+        <div class="login-logo">mi_<span>calli</span></div>
+        <div class="login-subtitle" data-en="property management" data-es="gestión de propiedades">property management</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="label" data-en="existing admin" data-es="admin existente">existing admin</span><span data-en="Login" data-es="Ingresar">Login</span></div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" data-en="Select admin" data-es="Seleccionar admin">Select admin</label>
+            <select id="login-select"><option value="">— choose / elegir —</option></select>
+          </div>
+        </div>
+        <button class="btn-primary" id="login-button" data-en="Login →" data-es="Ingresar →">Login →</button>
+      </div>
+      <div class="divider"><span data-en="or register" data-es="o registrarse">or register</span></div>
+      <div class="card">
+        <div class="card-title"><span class="label" data-en="new admin" data-es="nuevo admin">new admin</span><span data-en="Register" data-es="Registro">Register</span></div>
+        <form id="register-form">
+          <div class="form-grid">
+            <div class="field"><label class="field-label" data-en="Username" data-es="Usuario">Username</label><input id="reg-username" placeholder="username" required /></div>
+            <div class="field"><label class="field-label" data-en="Email" data-es="Correo">Email</label><input id="reg-email" type="email" placeholder="email@example.com" required /></div>
+            <div class="field"><label class="field-label" data-en="Password" data-es="Contraseña">Password</label><input id="reg-password" type="password" placeholder="••••••••" required /></div>
+          </div>
+          <button type="submit" class="btn-primary" data-en="Register & enter →" data-es="Registrar e ingresar →">Register & enter →</button>
+        </form>
       </div>
     </div>
-    <button type="submit" style="margin-top:0.5rem;">Create contract</button>
-  </form>
 
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
-      <h3 style="margin:0;">Yearly overview</h3>
-      <label style="font-size:14px;">Year <input id="overview-year" type="number" value="2026" style="width:5rem;padding:4px;" /></label>
-      <button id="load-year" type="button">Load</button>
-      <button id="generate-reminders" type="button">Generate reminders</button>
-      <label style="font-size:14px;">Month <input id="remind-month" type="number" value="5" min="1" max="12" style="width:4rem;padding:4px;" /></label>
+    <!-- ── Dashboard ── -->
+    <div id="dashboard-section" class="section">
+      <div class="section-header">
+        <h2 data-en="Yearly Overview" data-es="Resumen Anual">Yearly Overview</h2>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <input id="overview-year" type="number" value="2026" style="width:80px;" />
+          <button class="btn-secondary" id="load-year" data-en="Load" data-es="Cargar">Load</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--green);border:1px solid var(--green);"></div><span data-en="Paid" data-es="Pagado">Paid</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red);border:1px solid var(--red);"></div><span data-en="Unpaid" data-es="Sin pagar">Unpaid</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--surface2);border:1px solid var(--border);"></div><span data-en="No contract" data-es="Sin contrato">No contract</span></div>
+        </div>
+        <div class="year-grid-wrap">
+          <div id="year-grid" style="color:var(--text3);font-size:12px;" data-en="Select a year and click Load." data-es="Selecciona un año y haz clic en Cargar.">Select a year and click Load.</div>
+        </div>
+      </div>
     </div>
-    <div class="legend">
-      <span><span class="legend-dot" style="background:#3B6D11;"></span>Paid</span>
-      <span><span class="legend-dot" style="background:#A32D2D;"></span>Unpaid</span>
-      <span><span class="legend-dot" style="background:#D3D1C7;"></span>No contract</span>
+
+    <!-- ── Properties ── -->
+    <div id="properties-section" class="section">
+      <div class="section-header">
+        <h2 data-en="Properties" data-es="Propiedades">Properties</h2>
+      </div>
+      <div class="grid-2" style="margin-bottom:1.25rem;">
+        <div class="card">
+          <div class="card-title"><span class="label" data-en="new" data-es="nueva">new</span><span data-en="Property" data-es="Propiedad">Property</span></div>
+          <form id="property-form">
+            <div class="form-grid">
+              <div class="field"><label class="field-label" data-en="Name" data-es="Nombre">Name</label><input id="property-name" placeholder="Casa Azul" required /></div>
+              <div class="field"><label class="field-label" data-en="Address" data-es="Dirección">Address</label><input id="property-address" placeholder="Calle 5 #12" required /></div>
+              <div class="field">
+                <label class="field-label" data-en="Image" data-es="Imagen">Image</label>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <input type="file" id="property-image-file" accept="image/*" style="display:none;" />
+                  <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('property-image-file').click()" data-en="Upload" data-es="Subir">Upload</button>
+                  <span id="property-upload-name" style="color:var(--text3);font-size:11px;"></span>
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="btn-primary" data-en="Create property" data-es="Crear propiedad">Create property</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="label" data-en="new" data-es="nueva">new</span><span data-en="Room" data-es="Habitación">Room</span></div>
+          <form id="room-form">
+            <div class="form-grid">
+              <div class="field"><label class="field-label" data-en="Property" data-es="Propiedad">Property</label><select id="room-property-select" required><option value="">— select —</option></select></div>
+              <div class="field"><label class="field-label" data-en="Room name" data-es="Nombre hab.">Room name</label><input id="room-name" placeholder="Cuarto 1" required /></div>
+              <div class="grid-2" style="gap:0.5rem;">
+                <div class="field"><label class="field-label" data-en="Default rent" data-es="Renta base">Default rent</label><input id="room-default-amount" type="number" placeholder="5000" /></div>
+                <div class="field"><label class="field-label" data-en="Pay day" data-es="Día de pago">Pay day</label><input id="room-default-pay-day" type="number" placeholder="1" min="1" max="28" /></div>
+              </div>
+              <div class="field"><label class="field-label" data-en="Default duration (months)" data-es="Duración base (meses)">Default duration (months)</label><input id="room-default-duration" type="number" placeholder="12" /></div>
+            </div>
+            <button type="submit" class="btn-primary" data-en="Create room" data-es="Crear habitación">Create room</button>
+          </form>
+        </div>
+      </div>
+      <div id="prop-list" class="prop-list"></div>
     </div>
-    <div class="grid-wrap">
-      <div id="year-grid">Select a year and click Load.</div>
+
+    <!-- ── Tenants ── -->
+    <div id="tenants-section" class="section">
+      <div class="section-header">
+        <h2 data-en="Tenants" data-es="Inquilinos">Tenants</h2>
+      </div>
+      <div class="grid-2" style="margin-bottom:1.25rem;">
+        <div class="card">
+          <div class="card-title"><span class="label" data-en="new" data-es="nuevo">new</span><span data-en="Tenant" data-es="Inquilino">Tenant</span></div>
+          <form id="tenant-form">
+            <div class="form-grid">
+              <div class="field"><label class="field-label" data-en="Username" data-es="Usuario">Username</label><input id="tenant-username" placeholder="tenant_name" required /></div>
+              <div class="field"><label class="field-label" data-en="Email" data-es="Correo">Email</label><input id="tenant-email" type="email" placeholder="tenant@email.com" required /></div>
+            </div>
+            <button type="submit" class="btn-primary" data-en="Create tenant" data-es="Crear inquilino">Create tenant</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="label" data-en="assign" data-es="asignar">assign</span><span data-en="Contract" data-es="Contrato">Contract</span></div>
+          <form id="contract-form">
+            <div class="form-grid">
+              <div class="field"><label class="field-label" data-en="Tenant" data-es="Inquilino">Tenant</label><select id="contract-tenant-select" required><option value="">— select —</option></select></div>
+              <div class="field"><label class="field-label" data-en="Room" data-es="Habitación">Room</label><select id="contract-room-select" required><option value="">— select —</option></select></div>
+              <div class="field"><label class="field-label" data-en="Monthly rent" data-es="Renta mensual">Monthly rent</label><input id="contract-amount" type="number" placeholder="5000" required /></div>
+              <div class="grid-2" style="gap:0.5rem;">
+                <div class="field"><label class="field-label" data-en="Start year" data-es="Año inicio">Start year</label><input id="contract-start-year" type="number" value="2026" /></div>
+                <div class="field"><label class="field-label" data-en="Start month" data-es="Mes inicio">Start month</label><input id="contract-start-month" type="number" value="5" min="1" max="12" /></div>
+              </div>
+              <div class="grid-2" style="gap:0.5rem;">
+                <div class="field"><label class="field-label" data-en="Duration (months)" data-es="Duración (meses)">Duration (months)</label><input id="contract-duration" type="number" value="12" min="1" /></div>
+                <div class="field"><label class="field-label" data-en="Pay day (1-28)" data-es="Día de pago (1-28)">Pay day (1-28)</label><input id="contract-pay-day" type="number" value="1" min="1" max="28" /></div>
+              </div>
+              <div class="field"><label class="field-label" data-en="Inventory notes" data-es="Inventario">Inventory notes</label><textarea id="contract-inventory" placeholder="Bed, desk, wardrobe..."></textarea></div>
+            </div>
+            <button type="submit" class="btn-primary" data-en="Create contract" data-es="Crear contrato">Create contract</button>
+          </form>
+        </div>
+      </div>
+      <div id="tenant-list" class="tenant-list"></div>
     </div>
-  </div>
 
-</section>
+    <!-- ── Expenses ── -->
+    <div id="expenses-section" class="section">
+      <div class="section-header">
+        <h2 data-en="House Expenses" data-es="Gastos del Inmueble">House Expenses</h2>
+      </div>
+      <div class="card" style="margin-bottom:1.25rem;">
+        <div class="card-title"><span class="label" data-en="add" data-es="agregar">add</span><span data-en="Expense" data-es="Gasto">Expense</span></div>
+        <form id="expense-form">
+          <div class="form-grid">
+            <div class="field"><label class="field-label" data-en="Property" data-es="Propiedad">Property</label><select id="expense-property-select" required><option value="">— select —</option></select></div>
+            <div class="field"><label class="field-label" data-en="Description" data-es="Descripción">Description</label><input id="expense-description" placeholder="Agua / Water" required /></div>
+            <div class="field"><label class="field-label" data-en="Amount" data-es="Monto">Amount</label><input id="expense-amount" type="number" placeholder="500" required /></div>
+            <div class="grid-2" style="gap:0.5rem;">
+              <div class="field"><label class="field-label" data-en="Year" data-es="Año">Year</label><input id="expense-year" type="number" value="2026" /></div>
+              <div class="field"><label class="field-label" data-en="Month" data-es="Mes">Month</label><input id="expense-month" type="number" value="5" min="1" max="12" /></div>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" data-en="Add expense" data-es="Agregar gasto">Add expense</button>
+        </form>
+      </div>
+      <div class="field" style="margin-bottom:1rem;max-width:300px;">
+        <label class="field-label" data-en="Filter by property" data-es="Filtrar por propiedad">Filter by property</label>
+        <select id="expense-filter-select"><option value="">— all / todas —</option></select>
+      </div>
+      <div id="expense-list" class="expense-list"></div>
+    </div>
 
-<section class="card">
-  <h2>Current properties</h2>
-  <div id="properties-list">Loading...</div>
-</section>
-
+  </main>
+</div>
 <script src="app.js"></script>
 </body>
 </html>

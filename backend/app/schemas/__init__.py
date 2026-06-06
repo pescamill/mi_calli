@@ -1,0 +1,1 @@
+from app.schemas.rooms import RoomCreate, RoomUpdate, RoomResponse
