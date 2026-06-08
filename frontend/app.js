@@ -1,6 +1,6 @@
 // ── State ──
 let currentAdminId = null;
-let currentLang = "en";
+let currentLang = "es";
 let allUsers = [];
 let allProperties = [];
 let allRooms = [];
@@ -36,6 +36,71 @@ function showMessage(text, isError = false) {
   messageEl.classList.toggle("error", isError);
   if (!isError) setTimeout(() => messageEl.classList.remove("visible"), 4000);
 }
+
+// ── Lightbox ──
+let lightboxImages = [];
+let lightboxIndex = 0;
+
+function openLightbox(images, index) {
+  lightboxImages = images;
+  lightboxIndex = index;
+  renderLightbox();
+  document.getElementById("lightbox").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function renderLightbox() {
+  const item = lightboxImages[lightboxIndex];
+  const url = typeof item === "object" ? item.url : item;
+  
+  document.getElementById("lightbox-img").src = url;
+  document.getElementById("lightbox-counter").textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+  document.getElementById("lightbox-prev").style.display = lightboxImages.length > 1 ? "block" : "none";
+  document.getElementById("lightbox-next").style.display = lightboxImages.length > 1 ? "block" : "none";
+
+  const delBtn = document.getElementById("lightbox-delete-btn");
+  if (delBtn) {
+    if (typeof item === "object" && item.id) {
+      delBtn.style.display = "block";
+      delBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const confirmed = confirm(t("Delete this image?", "¿Eliminar esta imagen?"));
+        if (!confirmed) return;
+        try {
+          if (item.type === "room") {
+            await api(`/rooms/${item.parentId}/images/${item.id}`, { method: "DELETE" });
+            await loadAll();
+            if (activeRoomId === item.parentId) {
+              showRoomDetail(item.propId, item.parentId);
+            }
+          } else if (item.type === "property") {
+            await api(`/properties/${item.parentId}/images/${item.id}`, { method: "DELETE" });
+            await loadAll();
+          }
+          showMessage(t("Image deleted.", "Imagen eliminada."));
+          closeLightbox();
+        } catch {
+          showMessage(t("Failed to delete image.", "Error al eliminar imagen."), true);
+        }
+      };
+    } else {
+      delBtn.style.display = "none";
+    }
+  }
+}
+
+function closeLightbox() {
+  document.getElementById("lightbox").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+document.addEventListener("keydown", e => {
+  const lb = document.getElementById("lightbox");
+  if (lb.style.display === "none") return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowRight") { lightboxIndex = (lightboxIndex + 1) % lightboxImages.length; renderLightbox(); }
+  if (e.key === "ArrowLeft") { lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length; renderLightbox(); }
+});
 
 // ── Navigation ──
 function showSection(name) {
@@ -85,7 +150,6 @@ async function loadAll() {
 }
 
 function populateSelects() {
-  // Login select
   const loginSel = document.getElementById("login-select");
   loginSel.innerHTML = '<option value="">— choose / elegir —</option>';
   allUsers.filter(u => u.role === "admin").forEach(u => {
@@ -94,7 +158,6 @@ function populateSelects() {
     loginSel.appendChild(o);
   });
 
-  // Tenant select (contract form)
   const tenantSel = document.getElementById("contract-tenant-select");
   tenantSel.innerHTML = '<option value="">— select —</option>';
   allUsers.filter(u => u.role === "tenant").forEach(u => {
@@ -103,7 +166,6 @@ function populateSelects() {
     tenantSel.appendChild(o);
   });
 
-  // Room select (contract form) — only vacant rooms
   const roomSel = document.getElementById("contract-room-select");
   roomSel.innerHTML = '<option value="">— select —</option>';
   allRooms.filter(r => !r.occupied).forEach(r => {
@@ -111,19 +173,18 @@ function populateSelects() {
     const o = document.createElement("option");
     o.value = r.id;
     o.textContent = `${prop ? prop.name + ' / ' : ''}${r.name}`;
-    // Pre-fill defaults on change
-    roomSel.addEventListener("change", () => {
-      const selected = allRooms.find(rm => rm.id === Number(roomSel.value));
-      if (selected) {
-        if (selected.default_amount) document.getElementById("contract-amount").value = selected.default_amount;
-        if (selected.default_pay_day) document.getElementById("contract-pay-day").value = selected.default_pay_day;
-        if (selected.default_duration_months) document.getElementById("contract-duration").value = selected.default_duration_months;
-      }
-    });
     roomSel.appendChild(o);
   });
 
-  // Property selects
+  roomSel.addEventListener("change", () => {
+    const selected = allRooms.find(rm => rm.id === Number(roomSel.value));
+    if (selected) {
+      if (selected.default_amount) document.getElementById("contract-amount").value = selected.default_amount;
+      if (selected.default_pay_day) document.getElementById("contract-pay-day").value = selected.default_pay_day;
+      if (selected.default_duration_months) document.getElementById("contract-duration").value = selected.default_duration_months;
+    }
+  });
+
   ["room-property-select", "expense-property-select", "expense-filter-select"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -370,14 +431,47 @@ function renderPropList() {
   allProperties.forEach(prop => {
     const rooms = allRooms.filter(r => r.property_id === prop.id);
     const occupied = rooms.filter(r => r.occupied).length;
+    const propImages = prop.images || [];
+
+    // Prepare serializable objects for Lightbox
+    const propImagesData = propImages.map(img => ({
+      url: img.url,
+      id: img.id,
+      type: "property",
+      parentId: prop.id
+    }));
+    const propImagesDataStr = JSON.stringify(propImagesData).replace(/"/g, '&quot;');
+
+    // Build image strip for property
+    const propImgsHtml = propImages.length > 0
+      ? `<div class="img-strip" style="margin:0.75rem 0;">
+          ${propImages.map((img, i) =>
+            `<div class="img-thumb" onclick="openLightbox(${propImagesDataStr}, ${i})" style="cursor:pointer;">
+              <img src="${img.url}" alt="${prop.name}" />
+            </div>`
+          ).join("")}
+          <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:80px;height:80px;border:1px dashed var(--border);border-radius:var(--radius-sm);color:var(--text3);font-size:11px;">
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadPropertyImage(event,${prop.id})">
+            + ${t("photo","foto")}
+          </label>
+        </div>`
+      : `<div style="margin:0.5rem 0;">
+          <label style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:11px;color:var(--text3);">
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadPropertyImage(event,${prop.id})">
+            + ${t("Add photo","Agregar foto")}
+          </label>
+        </div>`;
 
     const item = document.createElement("div");
     item.className = "prop-item";
     item.innerHTML = `
       <div class="prop-header" onclick="toggleProp(${prop.id})">
-        <div class="prop-header-left">
-          <h3>${prop.name}</h3>
-          <p>${prop.address} · ${rooms.length} ${t("rooms","hab.")} · ${occupied} ${t("occupied","ocupadas")}</p>
+        <div class="prop-header-left" style="display:flex;align-items:center;gap:1rem;">
+          ${propImages[0] ? `<img src="${propImages[0].url}" alt="${prop.name}" style="width:48px;height:48px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;" />` : `<div style="width:48px;height:48px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);flex-shrink:0;"></div>`}
+          <div>
+            <h3>${prop.name}</h3>
+            <p>${prop.address} · ${rooms.length} ${t("rooms","hab.")} · ${occupied} ${t("occupied","ocupadas")}</p>
+          </div>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center;">
           <span class="badge badge-neutral">${rooms.length - occupied} ${t("vacant","vacantes")}</span>
@@ -385,6 +479,7 @@ function renderPropList() {
         </div>
       </div>
       <div class="prop-body" id="prop-body-${prop.id}">
+        ${propImgsHtml}
         <div class="rooms-grid" id="rooms-grid-${prop.id}"></div>
         <div id="room-detail-${prop.id}"></div>
       </div>
@@ -393,6 +488,16 @@ function renderPropList() {
     renderRoomsGrid(prop.id, rooms);
   });
 }
+
+window.uploadPropertyImage = async function(event, propId) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = await uploadFile(file);
+  if (!url) return showMessage(t("Upload failed.","Error al subir."), true);
+  await api(`/properties/${propId}/images`, { method: "POST", body: JSON.stringify({ url }) });
+  showMessage(t("Photo added.","Foto agregada."));
+  await loadAll();
+};
 
 window.toggleProp = function(propId) {
   const body = document.getElementById(`prop-body-${propId}`);
@@ -429,18 +534,32 @@ async function showRoomDetail(propId, roomId) {
     return;
   }
   activeRoomId = roomId;
+  activePropId = propId;
   const room = allRooms.find(r => r.id === roomId);
   if (!room) return;
 
   const container = document.getElementById(`room-detail-${propId}`);
 
-  // Load contracts for this room
   let contracts = [];
   try { contracts = await api(`/contracts?room_id=${roomId}`); } catch {}
   const activeContract = contracts.find(c => !c.terminated_at);
 
-  const imgsHtml = (room.images || []).map(img =>
-    `<div class="img-thumb"><img src="${img.url}" /><button class="del-img" onclick="deleteRoomImage(${roomId},${img.id},${propId})">×</button></div>`
+  // Prepare serializable objects for Lightbox
+  const roomImagesData = (room.images || []).map(img => ({
+    url: img.url,
+    id: img.id,
+    type: "room",
+    parentId: roomId,
+    propId: propId
+  }));
+  const roomImagesDataStr = JSON.stringify(roomImagesData).replace(/"/g, '&quot;');
+
+  // Images with lightbox
+  const imgsHtml = (room.images || []).map((img, i) =>
+    `<div class="img-thumb" style="cursor:pointer;" onclick="openLightbox(${roomImagesDataStr}, ${i})">
+      <img src="${img.url}" />
+      <button class="del-img" onclick="event.stopPropagation();deleteRoomImage(${roomId},${img.id},${propId})">×</button>
+    </div>`
   ).join("");
 
   let contractHtml = "";
@@ -454,8 +573,11 @@ async function showRoomDetail(propId, roomId) {
           <h5>${MONTHS[cm.month-1]} ${cm.year}</h5>
           <div class="amount">$${Number(activeContract.amount).toLocaleString()}</div>
           <div class="paid-amount">${t("paid","pagado")}: $${paid.toLocaleString()}</div>
-          ${!isPaid ? `<button class="btn-primary btn-sm" style="margin-top:0.5rem;" onclick="markPaid(${cm.id})">${t("Mark paid","Marcar pagado")}</button>` : `<span class="badge badge-yes" style="margin-top:0.5rem;">${t("paid","pagado")}</span>`}
-          ${cm.file_path ? `<a href="${cm.file_path}" target="_blank" style="display:block;margin-top:0.4rem;font-size:10px;color:var(--accent);">${t("PDF","PDF")}</a>` : ""}
+          ${!isPaid
+            ? `<button class="btn-primary btn-sm" style="margin-top:0.5rem;" onclick="markPaid(${cm.id})">${t("Mark paid","Marcar pagado")}</button>`
+            : `<span class="badge badge-yes" style="margin-top:0.5rem;display:inline-block;">${t("paid","pagado")}</span>`
+          }
+          ${cm.file_path ? `<a href="${cm.file_path}" target="_blank" style="display:block;margin-top:0.4rem;font-size:10px;color:var(--accent);">PDF ↗</a>` : ""}
         </div>`;
     }).join("");
 
@@ -569,10 +691,6 @@ function renderTenantList() {
     return;
   }
   tenants.forEach(t_ => {
-    const room = allRooms.find(r => {
-      // Find room where tenant has active contract — approximate from room list
-      return false; // We'd need contracts loaded; skip for now
-    });
     const item = document.createElement("div");
     item.className = "tenant-item";
     item.innerHTML = `
@@ -643,7 +761,6 @@ async function loadExpenses() {
   }
 }
 
-// Load expenses when switching to expenses tab
 document.querySelectorAll(".nav-btn").forEach(btn => {
   if (btn.dataset.section === "expenses") {
     btn.addEventListener("click", loadExpenses);
