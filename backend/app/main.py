@@ -1,13 +1,14 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends, Form
 from fastapi.staticfiles import StaticFiles
-from app.db.database import engine, SessionLocal
+from app.db.database import engine, SessionLocal, get_db
 from app.api.properties import router as properties_router
 from app.api.users import router as users_router
 from app.api.contracts import router as contracts_router, send_email, effective_pay_day
 from app.api.rooms import router as rooms_router
 from app.models import Contract, ContractMonth, User, Property, Room
+from app.scripts.import_xlsx_template import run_import
 from sqlalchemy import text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 import app.models
 import shutil
 import os
@@ -16,8 +17,11 @@ import httpx
 import csv
 import io
 import logging
+import tempfile
+import pandas as pd
 from datetime import datetime, date, timedelta
 from contextlib import asynccontextmanager
+
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -88,7 +92,6 @@ async def send_daily_reminders():
                     if total_paid >= amount_due:
                         continue
 
-                    # Skip if already sent today
                     if cm.reminder_sent_at:
                         last = cm.reminder_sent_at
                         if hasattr(last, 'date'):
@@ -180,3 +183,50 @@ def upload_file(file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"url": f"/uploads/{file.filename}"}
+
+
+@app.post("/import_xlsx")
+async def import_xlsx_endpoint(
+    file: UploadFile = File(...),
+    dry_run: bool = Form(False),       # FIX: was True — now defaults to live run
+    db: Session = Depends(get_db),     # FIX: use FastAPI's session (inside Docker)
+):
+    if not file.filename.endswith((".xlsx", ".xls")):
+        return {"error": "Only .xlsx / .xls files are accepted"}
+
+    contents = await file.read()
+
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+        tmp.write(contents)
+        tmp_path = tmp.name
+
+    try:
+        df = pd.read_excel(tmp_path)
+    except Exception as e:
+        return {"error": f"Could not parse file: {e}"}
+    finally:
+        os.unlink(tmp_path)
+
+    try:
+        result = run_import(df, db, dry_run=dry_run)   # FIX: pass db directly
+    except Exception as e:
+        import traceback
+        logger.error("Import error: %s", traceback.format_exc())
+        db.rollback()
+        return {"error": str(e)}
+
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
+
+    return {
+        "status": "ok",
+        "dry_run": dry_run,
+        "result": {
+            "created": len(result["created"]),
+            "unresolved": len(result["unresolved"]),
+            "created_list": result["created"],
+            "unresolved_list": result["unresolved"],
+        },
+    }

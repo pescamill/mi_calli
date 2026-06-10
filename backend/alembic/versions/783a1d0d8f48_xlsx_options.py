@@ -1,8 +1,8 @@
-"""rooms_and_contract_months
+""".xlsx options
 
-Revision ID: db8e8891dcaf
+Revision ID: 783a1d0d8f48
 Revises: 
-Create Date: 2026-06-06 03:24:19.184473
+Create Date: 2026-06-09 00:16:33.799393
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'db8e8891dcaf'
+revision = '783a1d0d8f48'
 down_revision = None
 branch_labels = None
 depends_on = None

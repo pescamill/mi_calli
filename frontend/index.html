@@ -210,6 +210,7 @@ table.ygrid td.cell { text-align: center; padding: 0.35rem; border-bottom: 1px s
       <button class="nav-btn" data-section="properties" data-en="Properties" data-es="Propiedades">Properties</button>
       <button class="nav-btn" data-section="tenants" data-en="Tenants" data-es="Inquilinos">Tenants</button>
       <button class="nav-btn" data-section="expenses" data-en="Expenses" data-es="Gastos">Expenses</button>
+      <button class="nav-btn" data-section="import" data-en="Import" data-es="Importar">Import</button>
     </nav>
     <div class="header-right">
       <button class="lang-btn" id="lang-btn">ES</button>
@@ -269,6 +270,54 @@ table.ygrid td.cell { text-align: center; padding: 0.35rem; border-bottom: 1px s
         <div class="year-grid-wrap">
           <div id="year-grid" style="color:var(--text3);font-size:12px;" data-en="Select a year and click Load." data-es="Selecciona un año y haz clic en Cargar.">Select a year and click Load.</div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Import ── -->
+    <div id="import-section" class="section">
+      <div class="section-header">
+        <h2 data-en="Import XLSX" data-es="Importar XLSX">Import XLSX</h2>
+      </div>
+      
+      <div class="card">
+        <div class="card-title"><span class="label" data-en="instructions" data-es="instrucciones">instructions</span><span data-en="How to Import" data-es="Cómo Importar">How to Import</span></div>
+        <p style="color:var(--text2);font-size:12px;margin-bottom:1rem;">
+          <span data-en="1. Download the template file below" data-es="1. Descarga la plantilla de abajo">1. Download the template file below</span><br/>
+          <span data-en="2. Fill it with your transaction data (rents and expenses)" data-es="2. Completa con tus transacciones (rentas y gastos)">2. Fill it with your transaction data (rents and expenses)</span><br/>
+          <span data-en="3. Upload the file and run a dry-run to verify" data-es="3. Sube el archivo y corre una simulación para verificar">3. Upload the file and run a dry-run to verify</span><br/>
+          <span data-en="4. Once confirmed, uncheck Dry-run and import" data-es="4. Una vez confirmado, desmarca Simulación e importa">4. Once confirmed, uncheck Dry-run and import</span>
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="label" data-en="template" data-es="plantilla">template</span><span data-en="Download Template" data-es="Descargar Plantilla">Download Template</span></div>
+        <p style="color:var(--text2);font-size:12px;margin-bottom:1rem;" data-en="Click to download a sample XLSX file with the correct structure" data-es="Haz clic para descargar un archivo XLSX de ejemplo con la estructura correcta">Click to download a sample XLSX file with the correct structure</p>
+        <a href="/uploads/IMPORT_TEMPLATE.xlsx" download="import_template.xlsx" class="btn-secondary" style="display:inline-block;text-decoration:none;">📥 <span data-en="Download Template" data-es="Descargar Plantilla">Download Template</span></a>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="label" data-en="upload" data-es="subir">upload</span><span data-en="Your File" data-es="Tu Archivo">Your File</span></div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" data-en="Select file" data-es="Seleccionar archivo">Select file</label>
+            <input type="file" id="import-file" accept=".xlsx,.xls" />
+          </div>
+          <div class="field">
+            <label class="field-label" data-en="Options" data-es="Opciones">Options</label>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+              <label style="font-size:12px;color:var(--text3);"><input type="checkbox" id="import-dry-run" checked /> <span data-en="Dry run (test only)" data-es="Simulación (solo prueba)">Dry run (test only)</span></label>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem;">
+          <button class="btn-primary" id="import-button" data-en="Import →" data-es="Importar →">Import →</button>
+          <div id="import-status" style="color:var(--text3);font-size:12px;"></div>
+        </div>
+      </div>
+
+      <div id="import-results" class="card" style="display:none;">
+        <div class="card-title"><span class="label" data-en="results" data-es="resultados">results</span><span data-en="Import Results" data-es="Resultados">Import Results</span></div>
+        <p id="import-summary" style="font-size:12px;"></p>
       </div>
     </div>
 

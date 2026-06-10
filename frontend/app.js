@@ -132,6 +132,60 @@ async function uploadFile(file) {
   return data.url || null;
 }
 
+// ── Import XLSX ──
+document.getElementById("import-button").addEventListener("click", async () => {
+  const fileInput = document.getElementById("import-file");
+  const status = document.getElementById("import-status");
+  const resultsCard = document.getElementById("import-results");
+  const resultsSummary = document.getElementById("import-summary");
+  const dryRun = document.getElementById("import-dry-run").checked;
+  
+  status.textContent = "";
+  resultsCard.style.display = "none";
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    return showMessage(t("Select a file.", "Selecciona un archivo."), true);
+  }
+  
+  const file = fileInput.files[0];
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('dry_run', dryRun ? '1' : '0');
+
+  try {
+    status.textContent = t('Uploading...', 'Subiendo...');
+    const res = await fetch('/api/import_xlsx', { method: 'POST', body: fd });
+    const data = await res.json();
+    
+    if (data.error) {
+      showMessage(data.error, true);
+      status.textContent = '';
+      return;
+    }
+    
+    const result = data.result || {};
+    const msg = dryRun 
+      ? t(`Test: ${result.created} would be created, ${result.unresolved} errors.`, `Prueba: ${result.created} se crearían, ${result.unresolved} errores.`)
+      : t(`Success: ${result.created} created, ${result.unresolved} errors.`, `Éxito: ${result.created} creados, ${result.unresolved} errores.`);
+    
+    showMessage(msg, result.unresolved > 0);
+    status.textContent = '';
+    
+    // Show results
+    resultsSummary.innerHTML = `
+      <strong data-en="Created:" data-es="Creados:">Created:</strong> ${result.created}<br/>
+      <strong data-en="Unresolved:" data-es="Sin resolver:">Unresolved:</strong> ${result.unresolved}<br/>
+      ${dryRun ? '<br/><span data-en="This is a dry-run. No data was committed." data-es="Esta es una simulación. No se guardaron datos.">This is a dry-run. No data was committed.</span>' : '<br/><span data-en="Data has been successfully imported!" data-es="¡Los datos se importaron correctamente!">Data has been successfully imported!</span>'}
+    `;
+    resultsCard.style.display = "block";
+    
+    if (!dryRun) await loadAll();
+  } catch (e) {
+    showMessage(t('Import failed.', 'Error al importar.'), true);
+    status.textContent = '';
+  }
+});
+
 // ── Load all data ──
 async function loadAll() {
   try {
