@@ -1,14 +1,14 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 
 class ContractCreate(BaseModel):
     room_id: int
     tenant_id: int
     start_year: int
-    start_month: int
+    start_month: int = Field(ge=1, le=12)
     duration_months: int = 12
     pay_day: int = 1
-    amount: float
+    amount: float = Field(gt=0, allow_inf_nan=False)
     inventory: str | None = None
 
     @validator("pay_day")
@@ -24,7 +24,7 @@ class ContractCreate(BaseModel):
         return v
 
 class PaymentCreate(BaseModel):
-    amount: float
+    amount: float = Field(gt=0, allow_inf_nan=False)
     recorded_by: int | None = None
     receipt_url: str | None = None
 
@@ -54,7 +54,7 @@ class ContractResponse(BaseModel):
     room_id: int
     tenant_id: int
     start_year: int
-    start_month: int
+    start_month: int = Field(ge=1, le=12)
     duration_months: int
     pay_day: int
     amount: float

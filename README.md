@@ -285,3 +285,70 @@ Uploads (PDFs, photos) are stored in `./uploads/` which is gitignored. Back this
 ## License
 
 MIT
+## Tests
+
+The Playwright suite runs against FastAPI, PostgreSQL, and Nginx in a separate
+Docker Compose project. It uses port **18080**, temporary database/upload storage,
+and no email or Google Sheets configuration. The normal app and its data are not
+used. Background reminder and polling tasks are disabled in this stack.
+
+Requires Docker Compose v2 and Node.js 22 or newer:
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:up
+npm test
+npm run test:report
+npm run test:down
+```
+
+`test:down` removes only the `mi-calli-e2e` stack. Run it when finished; each test
+creates unique records, which remain in the disposable database until shutdown.
+Do not combine `compose.e2e.yml` with the normal Compose file or change its project
+name to the one used for real rental data.
+
+For a visible browser use `npm test -- --headed`, or `npm run test:ui` to step
+through tests. CI runs the same suite on pull requests and saves the HTML report,
+failure traces, screenshots, and container logs for seven days.
+
+Coverage:
+
+- Browser: property, room, tenant, contract, and payment workflow; saved payment
+  after reload; room defaults; occupied rooms excluded from contract selection.
+- Browser: missing admin selection, required property name, failed network request
+  with preserved form data, Spanish navigation, and logout.
+- API: year rollover, generated PDF, partial/full payments, duplicate contracts,
+  invalid month/pay day/duration/amount, missing room, wrong user role, admin
+  sign-off, and termination followed by a new contract.
+
+The API cases use Playwright's `request` fixture to check status codes and persisted
+state. Browser cases use `page` to interact with the real frontend. Only the network
+failure case intercepts an API call. Existing element IDs identify inputs; buttons
+use their visible names. Role checks reflect the app's current local-use behavior,
+not a complete authentication/security test.
+
+### Optional benchmark
+
+Start with a fresh **test** stack:
+
+```bash
+npm run test:down
+npm run test:up
+npm run benchmark
+npm run test:report
+npm run test:down
+```
+
+This seeds one property, ten rooms, and 120 billing months, then measures
+`GET /api/admin/year/2030`: five warmups and thirty sequential requests. The report
+includes raw timings, median, p95, machine information, and the dataset size as a
+JSON attachment. Timing includes the HTTP round trip and reading the response body;
+it excludes seeding and response assertions. Each response is checked for the
+expected twelve months and ten entries per month.
+
+This is a small API latency baseline, not a load test or a browser rendering
+benchmark. Compare runs on the same machine with the same dataset and dependency
+versions. There is no timing threshold in the regression suite. The GitHub Actions
+workflow also accepts a `benchmark` input for manual runs once available on the
+default branch.
