@@ -1,0 +1,15 @@
+{
+  "name": "mi-calli-tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test --project=chromium",
+    "test:ui": "playwright test --project=chromium --ui",
+    "test:report": "playwright show-report",
+    "test:up": "docker compose -p mi-calli-e2e -f compose.e2e.yml up --build --wait",
+    "test:down": "docker compose -p mi-calli-e2e -f compose.e2e.yml down -v",
+    "benchmark": "playwright test --project=benchmark --output=benchmark-results"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

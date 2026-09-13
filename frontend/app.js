@@ -878,4 +878,5 @@ window.terminateContract = async function(contractId, propId) {
 };
 
 // ── Init ──
+applyLang();
 loadAll();

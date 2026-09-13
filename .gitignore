@@ -23,3 +23,11 @@ uploads/
 
 # macOS
 .DS_Store
+
+# Playwright
+node_modules/
+playwright-report/
+test-results/
+e2e-containers.log
+benchmark-report/
+benchmark-results/
