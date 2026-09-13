@@ -36,6 +36,7 @@ const test = base.extend({
 
 async function login(page, owner) {
   await page.goto('/');
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.locator('#login-select').selectOption(String(owner.id));
   await page.getByRole('button', { name: 'Login →', exact: true }).click();
   await expect(page.locator('#current-admin-name')).toHaveText(owner.username);

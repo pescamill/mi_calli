@@ -53,6 +53,7 @@ test('creates a rental and records payment from the yearly dashboard', async ({ 
 
   // Reload data through the UI to verify the change was persisted.
   await page.reload();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.locator('#login-select').selectOption(String(owner.id));
   await page.getByRole('button', { name: 'Login →', exact: true }).click();
   await page.locator('#overview-year').fill('2030');
@@ -62,6 +63,9 @@ test('creates a rental and records payment from the yearly dashboard', async ({ 
 
 test('requires an admin selection before entering the dashboard', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Ingresar →', exact: true }).click();
+  await expect(page.locator('#message')).toHaveText('Selecciona un admin.');
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.getByRole('button', { name: 'Login →', exact: true }).click();
   await expect(page.locator('#message')).toHaveText('Select an admin.');
   await expect(page.locator('#main-nav')).toBeHidden();
