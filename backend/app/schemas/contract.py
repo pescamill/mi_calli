@@ -54,7 +54,7 @@ class ContractResponse(BaseModel):
     room_id: int
     tenant_id: int
     start_year: int
-    start_month: int = Field(ge=1, le=12)
+    start_month: int
     duration_months: int
     pay_day: int
     amount: float

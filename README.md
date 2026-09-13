@@ -349,6 +349,6 @@ expected twelve months and ten entries per month.
 
 This is a small API latency baseline, not a load test or a browser rendering
 benchmark. Compare runs on the same machine with the same dataset and dependency
-versions. There is no timing threshold in the regression suite. The GitHub Actions
-workflow also accepts a `benchmark` input for manual runs once available on the
-default branch.
+versions. There is no timing threshold in the regression suite. CI records the benchmark after regression tests using a fresh test stack and a
+separate `benchmark-results` artifact. The workflow also accepts a `benchmark`
+input to skip regression tests in manual runs once available on the default branch.
